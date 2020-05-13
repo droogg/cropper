@@ -1,9 +1,10 @@
 import os
 from os.path import join
 from glob import glob
+from pathlib import Path
 import re
 
-__all__ = ['norm_path', 'get_sorted_img_path', 'get_sorted_img_names', 'get_img_couple']
+__all__ = ['norm_path', 'get_sorted_img_path', 'get_sorted_img_names', 'get_img_couple', 'natural_keys']
 
 
 def norm_path(path: str) -> str:
@@ -21,7 +22,8 @@ def natural_keys(text):
 def img_listextend (path, extension):
     img_list = []
     for ext in extension:
-        img_list.extend(glob(join(path, '*.'+ ext)))
+        for pindx in Path(path).rglob('*.'+ext):
+            img_list.append(str(pindx))
     return img_list
 
 
@@ -43,6 +45,7 @@ def get_sorted_img_names(path: str, extension: list) -> list:
 def get_img_couple(path, extension):
     path = norm_path(path)
     img_fnl, img_couple_list = get_sorted_img_names(path, extension), []
+    img_fnl.sort(key= natural_keys)
     for i in range(len(img_fnl) - 1):
         if len(img_fnl) % 2 != 0:
             raise Exception('Количество изображений и аннотаций не совпадает')

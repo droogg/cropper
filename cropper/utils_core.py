@@ -10,6 +10,7 @@ import math
 from cropper.utils_img import *
 Image.MAX_IMAGE_PIXELS = None
 
+
 def img_tile_parameters(path_img: str, req_size: tuple, overlap: int) -> tuple:
     img_init = imread(path_img)
     img_height = img_init.shape[0]
@@ -22,38 +23,12 @@ def img_tile_parameters(path_img: str, req_size: tuple, overlap: int) -> tuple:
     return img_init, img_height, img_width, num_img_vertical, num_img_horizontal, num_tiles
 
 
-def create_img_fullpath(path_img: str, destination_path: str) -> tuple:
-    if destination_path is None or not isinstance(destination_path, str):
-        img_fullpath = create_crop_folder(path_img).split('.')[0]
-        if not isinstance(destination_path, str) and destination_path is not None:
-            print(f'A value passed as a destination directory {destination_path} is not a directory. ' \
-                  f'The destination path has been changed to the {dirname(img_fullpath)}.')
-        destination_path = dirname(img_fullpath)
-    else:
-        if not os.path.exists(destination_path):
-            os.makedirs(destination_path)
-        img_fullpath = normpath(join(destination_path, basename(path_img).split('.')[0]))
-    return img_fullpath, destination_path
-
-
-def create_crop_folder(path_img: str) -> str:
-    ''' create a folder for cut images and return a new image address '''
-    dir_name = dirname(path_img)
-    img_name = basename(path_img)
-    crop_folder_name = join(dir_name, 'crops')
-    if not os.path.exists(crop_folder_name):
-        os.makedirs(crop_folder_name)
-        print(f'New folder "{crop_folder_name}" created for tiles image stores')
-    img_fullpath = norm_path(crop_folder_name) + img_name
-    return img_fullpath
-
-
-def folder_creater(path, annotation_path, motive = 'annotation'):
+def folder_creater(path, annotation_path, motive = 'annotation_txt'):
     if annotation_path is None or not isinstance(annotation_path, str):
         pr = normpath(join(path, motive))
         if not os.path.exists(pr):
             os.makedirs(pr)
-            print(f'New folder "{pr}" created for {motive} txt file stores')
+            print(f'New folder "{pr}" created for {motive} file stores')
         if not isinstance(annotation_path, str) and annotation_path is not None:
             print(f'A value passed as a {motive} directory {annotation_path} is not a directory. ' \
                   f'The destination path has been changed to the "{pr}".')

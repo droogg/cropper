@@ -3,7 +3,8 @@ import random
 from skimage.io import imread
 import matplotlib.pyplot as plt
 import cv2
-from os.path import normpath, join
+from os.path import normpath, join, dirname, basename
+import os
 from PIL import Image
 from cropper.utils_img import *
 from cropper.utils_core import *
@@ -28,7 +29,11 @@ def tilinig_image(path_img: str, req_size: tuple, overlap: int, destination_path
     img_init, img_height, img_width, num_img_vertical, num_img_horizontal, num_tiles = img_tile_parameters(path_img,
                                                                                                            req_size, overlap)
     # build path for save crop image
-    img_fullpath, destination_path = create_img_fullpath(path_img, destination_path)
+    img_name = basename(path_img)
+    img_dir = dirname(path_img)
+    new_img_dir = folder_creater(img_dir, destination_path, motive = 'crops')
+    new_img_dir_crop = folder_creater(new_img_dir, norm_path(new_img_dir) + 'crops_img', motive='crops_img')
+
     # 2 loop: up-level loop on x-axes (horizontal), nested loop on y-axes (vertical)
     for i_tmp1 in range(num_img_horizontal):
         init_point_y = 0  # set init parameter for 2nd loop
@@ -45,17 +50,20 @@ def tilinig_image(path_img: str, req_size: tuple, overlap: int, destination_path
                 img0[0:img_height, 0:img_width, :] = img
                 img = img0
             if annotation_img:
-                cv2.imwrite(img_fullpath.split(annotation_prefix)[0] + f'_CROP_{i_save}' + annotation_prefix + '.png',
-                            img)
+                new_img_dir_annotation = folder_creater(new_img_dir, norm_path(new_img_dir)+'annotation', motive = 'annotation')
+                img_path_4_save = norm_path(new_img_dir_annotation) + img_name.split(annotation_prefix)[0]+ \
+                    f'_CROP_{i_save}' + annotation_prefix + '.png'
+                cv2.imwrite(img_path_4_save, img)
             else:
-                cv2.imwrite(img_fullpath + f'_CROP_{i_save}.png', img)
+                img_path_4_save = norm_path(new_img_dir_crop) + img_name.split('.')[0]+ f'_CROP_{i_save}.png'
+                cv2.imwrite(img_path_4_save, img)
             init_point_y += req_size[0]  # slide initial point on y-axes for next image
             i_save += 1
         init_point_x += req_size[1]  # slide initial point on y-axes for next image
     assert (i_save - 1) == num_tiles, f'The actual number of tiles in the image: {i_save - 1}, ' \
                                       f'does not match the calculated number of tiles that ' \
                                       f'should have been the result: {num_tiles}'
-    return destination_path
+    return new_img_dir, new_img_dir_crop
 
 
 def create_yolo_annotation(img_couple_list: list, path: str, annotation_path: str = None, plot_boundingbox: int = 0):
@@ -64,12 +72,12 @@ def create_yolo_annotation(img_couple_list: list, path: str, annotation_path: st
     '''
     path = norm_path(path)
     # crate folder if folder don't exist
-    annotation_path = folder_creater(path, annotation_path)
+    annotation_path = folder_creater(path, annotation_path, motive = 'annotation_txt')
 
     i_plot = 1
     for img_name, annotation_name in img_couple_list:
-        img = imread(path + img_name)
-        annotation = imread(path + annotation_name)
+        img = imread(join(path,'crops_img', img_name))
+        annotation = imread(join(path, 'annotation' ,annotation_name))
         Yp, Xp = np.nonzero(annotation[:, :, 3])
 
         img_height = img.shape[0]  # height img
@@ -118,6 +126,7 @@ def split_dataset(path: str, extension: 'list of file extensions', train_part = 
     :param out_prefix_txt: str - txt file title prefix
     :return: None
     '''
+    path = norm_path(path)
     if train_part > 1.0 or train_part < 0:
         print("Train dataset cannot be more than 100% of the data or be negative. Set train_part values in range [0., "
               "1.]")
@@ -131,9 +140,12 @@ def split_dataset(path: str, extension: 'list of file extensions', train_part = 
     list_train, list_val = path_img_list[:(int(train_part * len(path_img_list)))], path_img_list[(int(train_part * len(path_img_list))):]
     print('количество изображений в train: {}, количество изображений в validation: {}'.format(len(list_train),
                                                                                                len(list_val)))
+    list_train.sort(key= natural_keys)
+    list_val.sort(key= natural_keys)
     assert len(path_img_list) == (len(list_train) + len(
         list_val)), 'Количество исходных изображений не соответствует сумме разбитых на две части изображений'
     if save_result:
+        path = os.path.abspath(os.path.join(os.path.dirname(path),".."))
         save_path = folder_creater(path, save_path, motive='img_link_list')
         for postfix, list_data in zip(['train', 'test'], [list_train, list_val]):
             with open(normpath(join(save_path, f'{out_prefix_txt}_{postfix}.txt')), 'w') as filehandle:
