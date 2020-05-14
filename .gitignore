@@ -1,3 +1,6 @@
 .directory
  cropper/__pycache__
 .project
+cropper/__pycache__/
+tutorials/.ipynb_checkpoints/example_split-checkpoint.ipynb
+tutorials/.ipynb_checkpoints/example_use-checkpoint.ipynb

@@ -11,7 +11,7 @@ from cropper.utils_core import *
 Image.MAX_IMAGE_PIXELS = None
 
 
-def tilinig_image(path_img: str, req_size: tuple, overlap: int, destination_path: str = None,
+def tilinig_image(dir_path: str, path_img: str, req_size: tuple, overlap: int, destination_path: str = None,
                   annotation_prefix: str = None) -> str:
     '''
     Cut the image with set size in req_size. Cutting only one image pointed to in {path_img}.
@@ -30,8 +30,8 @@ def tilinig_image(path_img: str, req_size: tuple, overlap: int, destination_path
                                                                                                            req_size, overlap)
     # build path for save crop image
     img_name = basename(path_img)
-    img_dir = dirname(path_img)
-    new_img_dir = folder_creater(img_dir, destination_path, motive = 'crops')
+    # img_dir = dirname(path_img)
+    new_img_dir = folder_creater(dir_path, destination_path, motive = 'crops')
     new_img_dir_crop = folder_creater(new_img_dir, norm_path(new_img_dir) + 'crops_img', motive='crops_img')
 
     # 2 loop: up-level loop on x-axes (horizontal), nested loop on y-axes (vertical)
