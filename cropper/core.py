@@ -3,6 +3,9 @@ import random
 from skimage.io import imread
 import matplotlib.pyplot as plt
 import cv2
+from random import sample
+from shutil import copyfile
+from pathlib import PurePath, Path
 from os.path import normpath, join, dirname, basename
 import os
 from PIL import Image
@@ -54,6 +57,7 @@ def tilinig_image_and_img_annotation(dir_path: str, path_img: str, req_size: tup
     # build path for save crop image
     img_name = basename(path_img)
     # img_dir = dirname(path_img)
+
     new_img_dir = folder_creater(dir_path, destination_path, motive = 'crops')
     new_img_dir_crop = folder_creater(new_img_dir, norm_path(new_img_dir) + 'crops_img', motive='crops_img')
     new_img_dir_annotation = folder_creater(new_img_dir, norm_path(new_img_dir) + 'annotation', motive='annotation')
@@ -279,12 +283,12 @@ def create_yolo_annotation_from_img_annotation(img_couple_list: list, dir_path: 
         img_height = img.shape[0]  # height img
         img_width = img.shape[1]  # width img
 
-        x = Xp.reshape(-1, 1)*scale / img_width
-        y = Yp.reshape(-1, 1)*scale / img_height
+        x = Xp.reshape(-1, 1)/ img_width
+        y = Yp.reshape(-1, 1)/ img_height
         width = np.array([int(bb_size[0]*scale)] * len(Xp)).reshape(-1, 1) / img_width
         height = np.array([int(bb_size[1]*scale)] * len(Xp)).reshape(-1, 1) / img_height
         y_for_annotation = np.hstack((x, y, width, height))
-        y_for_vizual = np.hstack((Xp.reshape(-1, 1)*scale, Yp.reshape(-1, 1)*scale, np.array([int(bb_size[0]*scale)] * len(Xp)).reshape(-1, 1),
+        y_for_vizual = np.hstack((Xp.reshape(-1, 1), Yp.reshape(-1, 1), np.array([int(bb_size[0]*scale)] * len(Xp)).reshape(-1, 1),
                                   np.array([int(bb_size[1]*scale)] * len(Xp)).reshape(-1, 1)))
         y_viz = xywh2xyxy(y_for_vizual)
 
@@ -353,6 +357,67 @@ def split_dataset(path: str, extension: 'list of file extensions', train_part = 
             with open(normpath(join(save_path, f'{out_prefix_txt}_{postfix}.txt')), 'w') as filehandle:
                 for listitem in list_data:
                     filehandle.write('%s\n' % listitem)
+
+
+def create_dataset_with_set_empty_samples(path_crop_dir, path_crop_img, path_crop_txtann, extansion,
+                                          empty_part, mod = 'silent'):
+    '''
+    Consider all text annotations in terms of finding the object in the frame. Divide all images into those that have
+    objects and no objects. Create a new dataset that will contain the specified percentage of images without objects
+    from the number of images with objects.
+
+    :param path_crop_dir: str - directory where images and annotations are located
+    :param path_crop_img: str - folder where the images are located
+    :param path_crop_txtann: str - folder where the txt annotation are located
+    :param extansion: list - list of file extension, example: ['png', 'jpg']
+    :param empty_part: float [0,1] - what proportion of images with objects will be images without objects
+    :param mod: 'copy' - copy images and annotations to a new directory
+                'del' - delete unnecessary files (images and annotations without objects) in the directory where they
+                        are located
+                'silent' - only display statistical information
+    :return: dst_img - the location of the image in a new data set
+             dst_ann - the location of the txt annotation in a new data set
+    '''
+    img_txt_couple = get_img_couple_imgtxt(path_crop_img, path_crop_txtann, extansion)
+    dst_img, dst_ann = path_crop_img, path_crop_txtann
+    empty_file = []
+    not_empty_file = []
+    for i in range(len(img_txt_couple)):
+        path_img, path_ann = img_txt_couple[i]
+        file_size = os.stat(path_ann).st_size
+        if not file_size: empty_file.append(img_txt_couple[i])
+        else: not_empty_file.append(img_txt_couple[i])
+    not_empty_part = int(len(not_empty_file)*empty_part)
+    if not_empty_part > len(empty_file): not_empty_part = len(empty_file)
+    if mod == 'copy':
+        empty_file_req_part = sample(empty_file, not_empty_part)
+        dataset = not_empty_file.copy()
+        dataset.extend(empty_file_req_part)
+        # copy result dataset in new dir
+        dst_base = PurePath(path_crop_dir).joinpath('dataset_with_set_emptyfile')
+        dst_img = PurePath(dst_base).joinpath('images')
+        dst_ann = PurePath(dst_base).joinpath('labels')
+        for path_exs in [dst_img, dst_ann]:
+            if not Path(path_exs).exists():
+                Path(path_exs).mkdir(parents=True, exist_ok=True)
+                print(f'{path_exs} is created')
+        for path_img,path_ann in dataset:
+            dst_img_n = PurePath(dst_img).joinpath(PurePath(path_img).name)
+            dst_ann_n = PurePath(dst_ann).joinpath(PurePath(path_ann).name)
+            copyfile(path_img, dst_img_n)
+            copyfile(path_ann, dst_ann_n)
+    elif mod == 'del':
+        # remove excess file
+        empty_file_for_del = [empty_file.pop(random.randrange(len(empty_file))) for _ in range(len(empty_file)-not_empty_part)]
+        for sample_del in empty_file_for_del:
+            path_img, path_ann = sample_del
+            Path(path_img).unlink()
+            Path(path_ann).unlink()
+    elif mod =='silent':
+        print(f'Number of images with objects: {len(not_empty_file)}\n'
+             f'The number of images without objects: {len(empty_file)}\n'
+             f'The number of images without objects that will be left in the data set: {not_empty_part}')
+    return dst_img, dst_ann
 
 
 def plot_img_and_boxes(path_img, path_annotation, plot_random = True, seed = None, max_plot = 30):
