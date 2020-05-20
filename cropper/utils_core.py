@@ -62,3 +62,36 @@ def xywh2xyxy(box):
     else:  # numpy
         x, y, w, h = box.T
         return np.stack((x - w / 2, y - h / 2, x + w / 2, y + h / 2)).T
+
+
+def xyxy2xywh(x):
+    # Transform box coordinates from [x1, y1, x2, y2] (where xy1=top-left, xy2=bottom-right) to [x, y, w, h]
+    y = np.zeros_like(x)
+    y[0] = (x[0] + x[2]) / 2  # x center
+    y[1] = (x[1] + x[3]) / 2  # y center
+    y[2] = x[2] - x[0]  # width
+    y[3] = x[3] - x[1]  # height
+    return y
+
+
+def txt_annotation_to_numpy(path_annotation: str) -> "ndarray":
+    ann_coord = np.loadtxt(path_annotation, dtype=int)
+    if ann_coord.shape[0]:
+        if len(ann_coord.shape) == 1:
+            ann_coord = ann_coord[None]
+        ann = np.delete(ann_coord, -1, 1)
+    else:
+        ann = ann_coord
+    return ann
+
+
+def to_BRG(img):
+    if img.shape[2] == 4:
+        red, green, blue, alpha = img.T
+        data = np.array([blue, green, red, alpha])
+        data = data.transpose()
+    else:
+        red, green, blue = img.T
+        data = np.array([blue, green, red])
+        data = data.transpose()
+    return data

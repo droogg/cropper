@@ -1,10 +1,11 @@
 import os
 from os.path import join
 from glob import glob
+from pathlib import PurePath
 from pathlib import Path
 import re
 
-__all__ = ['norm_path', 'get_sorted_img_path', 'get_sorted_img_names', 'get_img_couple', 'natural_keys']
+__all__ = ['norm_path', 'get_sorted_img_path', 'get_sorted_img_names', 'get_img_couple', 'natural_keys', 'get_img_couple_imgtxt']
 
 
 def norm_path(path: str) -> str:
@@ -54,3 +55,23 @@ def get_img_couple(path, extension):
     assert len(img_couple_list) == len(img_fnl) / 2, \
         'get_img_couple: Список неверно отсортирован или количество аннотаций-изображений несоответствует'
     return img_couple_list
+
+def get_img_couple_imgtxt(path_img, path_ann, extension):
+    path_img, path_ann = norm_path(path_img), norm_path(path_ann)
+    img_couple_list = []
+    img_fnl = get_sorted_img_names(path_img, extension)
+    img_fnl2 = get_sorted_img_names(path_ann, extension)
+    img_fnl.extend(img_fnl2)
+    img_fnl.sort(key= natural_keys)
+    for i in range(len(img_fnl) - 1):
+        if len(img_fnl) % 2 != 0:
+            raise Exception('Количество изображений и аннотаций не совпадает')
+        elif PurePath(img_fnl[i]).stem == PurePath(img_fnl[i + 1]).stem:
+            img_couple_list.append([img_fnl[i], img_fnl[i + 1]])
+    assert len(img_couple_list) == len(img_fnl) / 2, \
+        'get_img_couple: Список неверно отсортирован или количество аннотаций-изображений несоответствует'
+    img_couple =[]
+    for i in range(len(img_couple_list)):
+        title_img, title_ann = img_couple_list[i]
+        img_couple.append([join(path_img,title_img),join(path_ann, title_ann)])
+    return img_couple
